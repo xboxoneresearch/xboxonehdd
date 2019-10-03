@@ -1,25 +1,61 @@
 @Echo Off
 SETLOCAL EnableDelayedExpansion
+::  Author:  XFiX
+::  Date:    2016/06/30
+::  Version: 5.0
+::
+::  Summary:
+::  Create a true Xbox One 500GB, 1TB, or 2TB filesystem
+::  This process is not a hack anymore
+::  Past methods stretched a 500GB's filesystem
+::  Now we create a resettable 500GB/1TB/2TB drive on ANY Xbox One OG/S console
+::  Use at your own risk
+::
+::  TODO: Add true multilingual support
+::
+::  Change History:
+::  2016/06/30 - Initial Release - XFiX
+::  2016/08/10 - Use devcon to reset USB drives (Redacted) - XFiX
+::  2016/10/18 - List Partition Sizes - XFiX
+::  2017/05/12 - Added Englishize Cmd v1.7a Support - XFiX
+::  2017/05/24 - Official 1TB and 2TB GUID Support - XFiX
+::
+::  Credit History:
+::  2013/11 - Juvenal of Team Xecuter created the first working Python script
+::  http://team-xecuter.com/forums/threads/141568-XBOX-ONE-How-To-Install-A-Bigger-Hard-Drive-%21
+::
+::  2014/07 - Ludvik Jerabek created the first bash script
+::  http://www.ludvikjerabek.com/2014/07/14/xbox-one-fun-with-gpt-disk/
+::
+::  2016/06 - XFiX created a Windows batch script based on the bash script
+::  https://www.youtube.com/playlist?list=PLURaLwRqr6g14Pl8qLO0E4ELBBCHfFh1V
+::
+::  2017/05 - A1DR1K discovered the secret behind what differentiates
+::  500GB, 1TB, and 2TB Xbox One system hard drives
+::  https://www.reddit.com/user/A1DR1K
+::
+::  Englishize Cmd v1.7a
+::  https://wandersick.blogspot.com/p/change-non-english-command-line.html
 
-:: Author:  XFiX
-:: Date:    2016/06/30
-::
-:: Summary:
-::
-:: Create Xbox One filesystem
-::
-:: Change History:
-::
-:: 2016/06/30 - Initial Release - XFiX
+
+:: Changeable drive letters
+:: I've used higher letters to avoid conflicts
+set TEMP_CONTENT_LETTER=U:
+set USER_CONTENT_LETTER=V:
+set SYSTEM_SUPPORT_LETTER=W:
+set SYSTEM_UPDATE_LETTER=X:
+set SYSTEM_UPDATE2_LETTER=Y:
+
 
 title Create Xbox One Drive
 set XBO_LOG=%TEMP%\create_xbox_drive.log
-set XBO_VER=2016.06.30
+set XBO_VER=2017.05.24
 
 echo Ver: %XBO_VER% > %XBO_LOG% 2>&1
 date /T >> %XBO_LOG% 2>&1
 time /T >> %XBO_LOG% 2>&1
 
+cls
 echo.
 echo **********************************************************************
 echo * create_xbox_drive.bat:                                             *
@@ -31,16 +67,16 @@ echo * Created      2016.06.30                                            *
 echo * Last Updated %XBO_VER%                                            *
 echo **********************************************************************
 echo.
+echo * This script will temporarily change the command line interface to  *
+echo * English and change it back when complete.                          *
+echo.
 
 pause
 
-:: Changeable drive letters
-:: I've used higher letters to avoid conflicts
-set TEMP_CONTENT_LETTER=U:
-set USER_CONTENT_LETTER=V:
-set SYSTEM_SUPPORT_LETTER=W:
-set SYSTEM_UPDATE_LETTER=X:
-set SYSTEM_UPDATE2_LETTER=Y:
+:: Attempt to force English so that diskpart.exe output can be parsed correctly
+cd %~dp0\Englishize_Cmd
+call englishize_xfix.bat
+cd ..
 
 
 :: How To Check If Computer Is Running A 32 Bit or 64 Bit Operating System. http://support.microsoft.com/kb/556009
@@ -49,9 +85,11 @@ set SYSTEM_UPDATE2_LETTER=Y:
 for /f "tokens=3" %%A in ('reg query "HKLM\HARDWARE\DESCRIPTION\System\CentralProcessor\0" /v Identifier ^| findstr /b /r /c:" *Identifier"') do (set WINBIT=%%A)
 if "%WINBIT%" == "x86" (
         echo "This is a 32 Bit Operating System"
+        set XBO_DEVCON=devcon32
 	set XBO_GDISK=gdisk32
 ) else (
         echo "This is a 64 Bit Operating System"
+        set XBO_DEVCON=devcon64
 	set XBO_GDISK=gdisk64
 )
 
@@ -70,15 +108,17 @@ set XBO_DP_SCRIPT=%TEMP%\dps.txt
 set XBO_GD_SCRIPT=%TEMP%\gds.txt
 set XBO_TIMEOUT=30
 
-:: Common GUIDs used by XBox One
-set DISK_GUID=A2344BDB-D6DE-4766-9EB5-4109A12228E5
+:: Common GUIDs used by Xbox One
+set DISK_GUID_2TB=5B114955-4A1C-45C4-86DC-D95070008139
+set DISK_GUID_1TB=25E8A1B2-0B2A-4474-93FA-35B847D97EE5
+set DISK_GUID_500GB=A2344BDB-D6DE-4766-9EB5-4109A12228E5
 set TEMP_CONTENT_GUID=B3727DA5-A3AC-4B3D-9FD6-2EA54441011B
 set USER_CONTENT_GUID=869BB5E0-3356-4BE6-85F7-29323A675CC7
 set SYSTEM_SUPPORT_GUID=C90D7A47-CCB9-4CBA-8C66-0459F6B85724
 set SYSTEM_UPDATE_GUID=9A056AD7-32ED-4141-AEB1-AFB9BD5565DC
 set SYSTEM_UPDATE2_GUID=24B2197C-9D01-45F9-A8E1-DBBCFA161EB2
 
-:: Common partition sizes used by XBox One
+:: Common partition sizes used by Xbox One
 :: Xbox temp partition size (41G)
 set XBOX_TEMP_SIZE_IN_BYTES=44023414784
 :: Xbox support partition size (40G)
@@ -105,6 +145,8 @@ echo. >> %XBO_LOG% 2>&1
 
 :: Ignore the header (Disk ###) and Disk 0 lines
 ::%XBO_DISKPART% /s %XBO_DP_SCRIPT% | findstr /b /r /c:" *Disk [^#0]" | find /c "Disk"
+:: CHANGEME: The word "Disk" in English may be a different for your language
+:: For example: Portuguese and Spanish users must change " *Disk [^#0]" ^| find /c "Disk"') with " *Disco [^#0]" ^| find /c "Disco"')
 for /f "tokens=*" %%A in ('%XBO_DISKPART% /s %XBO_DP_SCRIPT% ^| findstr /b /r /c:" *Disk [^#0]" ^| find /c "Disk"') do (set XBO_DRIVE_COUNT=%%A)
 set XBO_CNT=0
 set XBO_CHOICE=
@@ -124,6 +166,7 @@ goto lchoice
 echo * Select disk to format as an Xbox One Drive . . .                   *
 choice.exe /C 0%XBO_CHOICE% /D 0 /T %XBO_TIMEOUT% /M "Press 0 to CANCEL or use a Disk Number from the list above (default 0 in %XBO_TIMEOUT% seconds)"
 set /a XBO_FORMAT_DRIVE=%ERRORLEVEL%-1
+:: CHANGEME: Comment out the line below with "::" if you want to allow disk 0 selection
 if %XBO_FORMAT_DRIVE% EQU 0 goto edrive
 
 
@@ -179,13 +222,10 @@ set /a XBOX_TEMP_SIZE_IN_MBYTES=%XBO_CALC_RESULT%
 echo.
 echo Select partition layout:
 set XBO_SIZE=
-echo (a) Autosize
+echo (a) Autosize Non-Standard
 echo (b) 500GB Standard
-echo (c) 500GB Large
-echo (d) 1TB Standard
-echo (e) 1TB Large
-echo (f) 2TB Standard
-echo (g) 2TB Large
+echo (c) 1TB Standard
+echo (d) 2TB Standard
 echo.
 set /p XBO_SIZE=?
 echo.
@@ -194,15 +234,16 @@ if '%XBO_SIZE%'=='a' goto sizea
 if '%XBO_SIZE%'=='b' goto sizeb
 if '%XBO_SIZE%'=='c' goto sizec
 if '%XBO_SIZE%'=='d' goto sized
-if '%XBO_SIZE%'=='e' goto sizee
-if '%XBO_SIZE%'=='f' goto sizef
-if '%XBO_SIZE%'=='g' goto sizeg
 echo "%XBO_SIZE%" is not valid please try again
 echo.
 goto selsize
 
 :: Partition 2: User Content
+
 :sizea
+:: Treat all Non-Standard size drives as 500GB drives but add the spare space to 'User Content'
+set DISK_GUID=%DISK_GUID_500GB%
+set DISK_NAME=(Auto)
 :: Size of the device in bytes
 CALL :Calc %XBO_DISK_SECTORS%*%DEV_LOGICAL_BLOCK_SIZE_IN_BYTES%
 :: New user content partition size (eg. Using a 500G drive it's rougly 392733679616 bytes = 365G )
@@ -214,32 +255,34 @@ echo * User Content: GByte Size: '%XBO_CALC_RESULT%'                            
 CALL :Calc %XBO_CALC_RESULT%*1024
 goto finsize
 
-:: Could force all drives >500GB to be 500GB equivalent
-:: XBox Original 500GB User Partion
 :sizeb
+:: Could force all drives >500GB to be 500GB equivalent
+set DISK_GUID=%DISK_GUID_500GB%
+set DISK_NAME=(500GB)
+:: Xbox One Standard 500GB User Partion
 CALL :Calc 391915765760/1024/1024
+:: CHANGEME: Xbox One Large 500GB User Partion
+::CALL :Calc 392732606464/1024/1024
 goto finsize
-:: XBox Full 500GB User Partion
+
 :sizec
-CALL :Calc 392732606464/1024/1024
-goto finsize
 :: Could force all drives >1TB to be 1TB equivalent
-:: XBox Original 1TB User Partion
+set DISK_GUID=%DISK_GUID_1TB%
+set DISK_NAME=(1TB)
+:: Xbox One Standard 1TB User Partion
+CALL :Calc 838592364544/1024/1024
+:: CHANGEME: Xbox One Large 1TB User Partion
+::CALL :Calc 892828909568/1024/1024
+goto finsize
+
 :sized
-CALL :Calc 892279455744/1024/1024
-goto finsize
-:: XBox Full 1TB User Partion
-:sizee
-CALL :Calc 892828909568/1024/1024
-goto finsize
 :: Could force all drives >2TB to be 2TB equivalent
-:: XBox Original 2TB User Partion
-:sizef
-CALL :Calc 1893006835712/1024/1024
-goto finsize
-:: XBox Full 2TB User Partion
-:sizeg
-CALL :Calc 1893023612928/1024/1024
+set DISK_GUID=%DISK_GUID_2TB%
+set DISK_NAME=(2TB)
+:: Xbox One Standard 2TB User Partion
+CALL :Calc 1784558911488/1024/1024
+:: CHANGEME: Xbox One Large 2TB User Partion
+::CALL :Calc 1893023612928/1024/1024
 goto finsize
 
 :finsize
@@ -349,11 +392,25 @@ echo y >> %XBO_GD_SCRIPT%
 %XBO_GDISK% \\.\physicaldrive%XBO_FORMAT_DRIVE% < %XBO_GD_SCRIPT% >> %XBO_LOG% 2>&1
 
 
+:: CHANGEME: Comment out the line below with "::" if you want the option to
+:: reset the disk after gdisk and before diskpart. Gdisk can take time to
+:: apply requested changes thus the 30 second "time to settle" bit below.
+goto nreset
+echo.
+echo.
+echo If the drive is connected by USB you may want to choose "Y" here
+echo This is equivalent to physically disconnecting and reconnecting the cable
+choice.exe /M "Reset USB mass storage devices "
+if ERRORLEVEL 2 goto nreset
+echo. >> %XBO_LOG% 2>&1
+%XBO_DEVCON% restart USB\ROOT_HUB20 >> %XBO_LOG% 2>&1
+:nreset
+
 echo.
 echo.
 :: gdisk creates partitions very quickly, perhaps too quickly?
 :: diskpart will not see the newly created volumes correctly without pausing
-choice.exe /N /C C /D C /T %XBO_TIMEOUT% /M "Giving USB/SATA devices time to settle . . ."
+start /wait choice.exe /N /C C /T %XBO_TIMEOUT% /D C /M "Giving USB/SATA devices time to settle, please wait . . ."
 
 :: Check volume status
 echo list volume > %XBO_DP_SCRIPT%
@@ -481,18 +538,23 @@ for /f "tokens=2* delims={}" %%A in ('%XBO_DISKPART% /s %XBO_DP_SCRIPT% ^| finds
 )
 
 echo.
-echo GUID                                 Device Name
-echo %XBO_DISK_GUID%
+echo GUID                                 Dev Size    Name
+echo %XBO_DISK_GUID%             %DISK_NAME%
 
 echo. >> %XBO_LOG% 2>&1
-echo GUID                                 Device Name >> %XBO_LOG% 2>&1
-echo %XBO_DISK_GUID% >> %XBO_LOG% 2>&1
+echo GUID                                 Dev Size    Name >> %XBO_LOG% 2>&1
+echo %XBO_DISK_GUID%             %DISK_NAME% >> %XBO_LOG% 2>&1
 
 set /a XBO_PART_CNT=0
 :: Get Volume GUID(s)- 1st get drive letters
-for /f "tokens=3,4,5" %%A in ('%XBO_DISKPART% /s %XBO_DP_SCRIPT% ^| findstr /b /r /c:" *Volume [^#0]"') do (
+for /f "tokens=3,4,5,8,9" %%A in ('%XBO_DISKPART% /s %XBO_DP_SCRIPT% ^| findstr /b /r /c:" *Volume [^#0]"') do (
     set /a XBO_PART_CNT+=1
     set XBO_PART!XBO_PART_CNT!_LETTER=%%A:
+    set XBO_PART!XBO_PART_CNT!_SIZE=%%D %%E
+    CALL :StrLen LEN XBO_PART!XBO_PART_CNT!_SIZE
+    CALL :Calc 7-!LEN!
+    CALL :GetSpaces SPC XBO_CALC_RESULT
+    set XBO_PART!XBO_PART_CNT!_SIZEP=!SPC!%%D %%E
     :: 2nd get GUID(s)
     for /f "tokens=2 delims={}" %%G in ('%XBO_MOUNTVOL% %%A:\ /L ^| findstr /b /r /c:" *\\\\?\\Volume"') do (
         set XBO_PART!XBO_PART_CNT!_GUID=%%G
@@ -502,7 +564,7 @@ for /f "tokens=3,4,5" %%A in ('%XBO_DISKPART% /s %XBO_DP_SCRIPT% ^| findstr /b /
     for /f "tokens=6*" %%V in ('vol %%A: ^| findstr /b /r /c:" *Volume in drive"') do (
         set XBO_PART!XBO_PART_CNT!_NAME=%%V %%W
     )
-    CALL :PrtPart XBO_PART!XBO_PART_CNT!_GUID XBO_PART!XBO_PART_CNT!_LETTER XBO_PART!XBO_PART_CNT!_NAME
+    CALL :PrtPart XBO_PART!XBO_PART_CNT!_GUID XBO_PART!XBO_PART_CNT!_LETTER XBO_PART!XBO_PART_CNT!_SIZEP XBO_PART!XBO_PART_CNT!_NAME
 )
 echo.
 echo. >> %XBO_LOG% 2>&1
@@ -511,8 +573,8 @@ GOTO:EOF
 
 
 :PrtPart
-echo !%1! !%2!     '!%3!'
-echo !%1! !%2!     '!%3!' >> %XBO_LOG% 2>&1
+echo !%1! !%2!  !%3! '!%4!'
+echo !%1! !%2!  !%3! '!%4!' >> %XBO_LOG% 2>&1
 GOTO:EOF
 
 
@@ -521,6 +583,42 @@ GOTO:EOF
 :: The argument for this subroutine is the variable NAME.
 FOR %%i IN ("a=A" "b=B" "c=C" "d=D" "e=E" "f=F" "g=G" "h=H" "i=I" "j=J" "k=K" "l=L" "m=M" "n=N" "o=O" "p=P" "q=Q" "r=R" "s=S" "t=T" "u=U" "v=V" "w=W" "x=X" "y=Y" "z=Z") DO CALL SET "%1=%%%1:%%~i%%"
 GOTO:EOF
+
+
+:StrLen <resultVar> <stringVar>
+(
+    setlocal EnableDelayedExpansion
+    set "s=!%~2!#"
+    set "len=0"
+    for %%P in (4096 2048 1024 512 256 128 64 32 16 8 4 2 1) do (
+        if "!s:~%%P,1!" NEQ "" (
+            set /a "len+=%%P"
+            set "s=!s:~%%P!"
+        )
+    )
+)
+(
+    endlocal
+    set "%~1=%len%"
+    GOTO:EOF
+)
+
+
+:GetSpaces <resultVar> <numericVar>
+(
+    setlocal EnableDelayedExpansion
+    set "s=!%~2!"
+    set "spc="
+    for /l %%I IN (1,1,!s!) do (
+        set "spc=!spc! "
+    )
+)
+(
+    endlocal
+    set "%~1=%spc%"
+    GOTO:EOF
+)
+
 
 :endbat
 echo.
@@ -531,5 +629,19 @@ echo %XBO_MESSAGE% >> %XBO_LOG% 2>&1
 echo. >> %XBO_LOG% 2>&1
 date /T >> %XBO_LOG% 2>&1
 time /T >> %XBO_LOG% 2>&1
+
+echo.
+echo * Script execution complete.                                         *
+echo.
+echo * This script will now change the command line interface back to the *
+echo * default language.                                                  *
+echo.
+pause
+
+
+:: Attempt to restore everything back to original language
+cd %~dp0\Englishize_Cmd
+call restore_xfix.bat
+cd ..
 
 ENDLOCAL
