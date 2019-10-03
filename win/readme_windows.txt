@@ -1,28 +1,54 @@
-Creates a properly partitioned Xbox One hard drive. You'll want to source the
-entire original drive files or use the latest OSU1 or OSU2 files.
+Last Updated: 2018/05/10
+Author: XFiX
+https://www.youtube.com/playlist?list=PLURaLwRqr6g14Pl8qLO0E4ELBBCHfFh1V
 
-Don't use a drive smaller than 500GB or larger than 2TB or you'll see E200
-errors.
+Creates a properly partitioned Xbox One hard drive. You'll want to source the
+entire original drive files or use the latest OSU1 files.
+
+Features:
+1. Create a Standard Xbox One 500GB, 1TB, or 2TB internal hard drive
+2. Upgrade a Standard Xbox One drive to non-standard sizes including
+   as small as 138GB, as large as 1947GB, and other non-standard sizes
+3. Set Standard Xbox One GUID values w/o formatting the drive
+4. Backup "System Update" to current directory System_Update and more
+5. Restore "System Update" from current directory System_Update and more
+6. Check all partitions for file system errors using chkdsk
+7. Wipe drive of all partitions and GUID values
 
 This script is a direct replacement to create_xbox_drive.sh for Linux and
 tested on Windows 7 and 10.
 
-You'll need some sort of SATA to USB device or have the ability to connect a
-SATA drive directly to your Windows PC.
+You'll need some sort of USB to SATA device or have the ability to connect a
+SATA drive directly to your PC. I recommend the USB3S2SAT3CB USB 3.0 to SATA
+adapter cable.
 
-NOTE: For this script to work on non-English Windows systems
-      C:\Windows\System32\en-US needs to be present.
-      Control Panel\All Control Panel Items\Language\Add languages
-      English (United States)
+NOTE 1: You need to run this script from an Administrator Command Prompt
+        using the "Run as administrator" feature.
 
-NOTE: Click "Cancel" or "X" on any "You need to format the disk in drive X:
-      before you can use it." messages.
+NOTE 2: For this script to work on non-English Windows systems
+        C:\Windows\System32\en-US needs to be present.
+        Control Panel\All Control Panel Items\Language\Add languages
+        English (United States)
+
+NOTE 3: Click "Cancel" or "X" on any "You need to format the disk in drive ?:
+        before you can use it." messages.
+
+NOTE 4: diskmgmt.msc is your friend. Keep it open while running this script
+        to check progress and verify proper partitioning and formatting.
 
 WARNING 1: Only have one Xbox One or future Xbox One drive connected when
            running this script to ensure the right drive gets formatted and
            avoid Offline signature collisions!
 
-WARNING 2: Alway use "Safely Remove Hardware and Eject Media" and "Eject" the
+           This means disconnecting the SOURCE drive after:
+           (b) Replace/Upgrade keeping original drive data
+           but before:
+           (c) Fix GUID values w/o formatting the drive
+           When redoing the entire process run this step on the TARGET with
+           the SOURCE disconnected:
+           (g) Wipe drive of all partitions and GUID values
+
+WARNING 2: Always use "Safely Remove Hardware and Eject Media" and "Eject" the
            newly created drive.
            If you receive the message: "Windows can't stop your
            'Generic volume' device because a program is still using it."
@@ -30,46 +56,85 @@ WARNING 2: Alway use "Safely Remove Hardware and Eject Media" and "Eject" the
            diskmgmt.msc right click the disk, select "Offline", then "Online"
            and then "Safely Remove Hardware and Eject Media" and "Eject".
 
-Partition layout explained.
+Primary script functions explained:
+(a) Replace/Upgrade w/o a working original drive   (Standard Only)    - used to fix systems when the original drive has failed
+(b) Replace/Upgrade keeping original drive data    (Standard and Non) - used to swap to a smaller or larger standard or non-standard drive
+(c) Fix GUID values w/o formatting the drive       (Standard and Non) - should be used after step (b) and after disconnecting the SOURCE drive
+(d) Backup "System Update" to current directory    (Standard and Non) - use before doing a Reset or Upgrade, better safe than sorry
+(e) Restore "System Update" from current directory (Standard and Non) - use after doing a Reset or Upgrade, told you so
+(f) Check all partitions for file system errors    (Standard and Non) - optionally check for filesystem corruption or prepare for Clonezilla
+(g) Wipe drive of all partitions and GUID values   (Standard and Non) - used to blank a drive before rerunning step (b)
+(h) CANCEL                                                            - skip making any drive modifications
+
+Partition layout explained:
 There are 5 partitions on an Xbox One drive. The 2nd partition 'User Content'
 is what this selection refers to. The other 4 partitions are always the same
 size regardless of the drive size.
 
-All partitions are rounded to the nearest gibibyte (normally). So option (a)
-will mostly do the right thing. Options (b) through (d) are for wanting to
-force a particular size on a drive at the size selected.
+All partitions are rounded to the nearest gibibyte (normally and not to be
+confused with gigabyte). So options (d) through (g) will mostly do the right
+thing. Options (a) through (c) are for wanting to force a particular size on
+the target drive.
 
-"Large" means to not round 'User Content' to the nearest gibibyte and make use
-of the left over megabytes. "Standard" uses the original sizes and leaves some
-space unused.
+Most people should choose (a), (b), or (c). If you have a 256GB or 750GB you
+should select (d). For 3TB, 4TB, or 5TB drives you should select (f).
 
-Most people should choose (b), (c), or (d). If you have a 3TB or 4TB drive for
-example you should select (d).
+(a) 500GB Standard (365GB)    (779MB Unallocated)
+(b) 1TB Standard   (781GB)  (50.51GB Unallocated)
+(c) 2TB Standard  (1662GB) (101.02GB Unallocated)
+(d) Autosize Non-Standard w/ 500GB Disk GUID (1947GB MAX) - create an autosized 'User Content' resetting to 500GB
+(e) Autosize Non-Standard w/ 1TB Disk GUID   (1947GB MAX) - create an autosized 'User Content' resetting to 1TB
+(f) Autosize Non-Standard w/ 2TB Disk GUID   (1947GB MAX) - create an autosized 'User Content' resetting to 2TB
 
-(a) Autosize Non-Standard - will create an appropriate 'User Content' partition size regardless of the drive size
-(b) 500GB Standard - 365 GB XB1 Standard Size (779 MB Unallocated)
-(c) 1TB Standard - 781 GB XB1 Standard Size (50.51 GB Unallocated)
-(d) 2TB Standard - 1662 GB XB1 Standard Size (101.02 GB Unallocated)
 
- 1. Unzip xboxonehdd-master-5.zip to the Desktop which will create an xboxonehdd-master directory
+ 1. Unzip xboxonehdd-master-7.zip to the Desktop which will create an xboxonehdd-master directory
  2. Open an Administrator Command Prompt:
     Windows 7: Click "Start Menu -> All Programs -> Accessories" right click "Command Prompt" select "Run as administrator"
-    Windows 10: Right click "Start Menu" select "Command Prompt (Admin)"
+    Windows 10 1607 and earlier: Right click "Start Menu" select "Command Prompt (Admin)"
+    Windows 10 1703 and later: Right click "Start Menu" select "Windows PowerShell (Admin)"
  3. In the Command Prompt paste:
+    Command Prompt:
     cd %USERPROFILE%\Desktop\xboxonehdd-master\win
+    Windows PowerShell:
+    cd $Env:USERPROFILE\Desktop\xboxonehdd-master\win
  4. Then paste:
-    create_xbox_drive.bat
+    .\create_xbox_drive.bat
  5. Follow all the prompts and be sure to select the appropriate drive. Example below:
 
     **********************************************************************
     * create_xbox_drive.bat:                                             *
-    * This script creates a correctly formated Xbox One HDD against the  *
+    * This script creates a correctly formatted Xbox One HDD against the *
     * drive YOU select.                                                  *
     * USE AT YOUR OWN RISK                                               *
     *                                                                    *
-    * Created      2016.06.30                                            *
-    * Last Updated 2017.05.24                                            *
+    * Created      2016.06.30.2.0                                        *
+    * Last Updated 2018.05.10.7.0                                        *
+    * Language ID  0409                                                  *
     **********************************************************************
+
+    * Administrative permissions required. Detecting permissions...      *
+    * Administrative permissions confirmed                               *
+
+    * English language availability required. Checking...                *
+    * English language availability confirmed                            *
+
+    * Are required drive letters available? Checking...                  *
+    * H: is free
+    * I: is free
+    * J: is free
+    * K: is free
+    * L: is free
+    * Found U: - Local Fixed Disk  Temp Content
+    * Found V: - Local Fixed Disk  User Content
+    * Found W: - Local Fixed Disk  System Support
+    * Found X: - Local Fixed Disk  System Update
+    * Found Y: - Local Fixed Disk  System Update 2
+
+    * WARNING: Any non-free drive letters above may interfere with this  *
+    *          script. Adjust the letters used in the "Changeable drive  *
+    *          letters" section near the top of this script.             *
+    *          If you have an Xbox One drive attached non-free drive     *
+    *          letters are expected.                                     *
 
     * This script will temporarily change the command line interface to  *
     * English and change it back when complete.                          *
@@ -95,10 +160,24 @@ example you should select (d).
     . . .
 
     "This is a 64 Bit Operating System"
+
+    Select Xbox One drive creation type:
+    (a) Replace/Upgrade w/o a working original drive   (Standard Only)
+    (b) Replace/Upgrade keeping original drive data    (Standard and Non)
+    (c) Fix GUID values w/o formatting the drive       (Standard and Non)
+    (d) Backup "System Update" to current directory    (Standard and Non)
+    (e) Restore "System Update" from current directory (Standard and Non)
+    (f) Check all partitions for file system errors    (Standard and Non)
+    (g) Wipe drive of all partitions and GUID values   (Standard and Non)
+    (h) CANCEL
+
+    ?a
+
     * Scanning for connected USB/SATA drives . . .                       *
 
-    Microsoft DiskPart version 10.0.14393.0
-    Copyright (C) 1999-2013 Microsoft Corporation.
+    Microsoft DiskPart version 10.0.16299.15
+
+    Copyright (C) Microsoft Corporation.
     On computer: XFIX-1
 
       Disk ###  Status         Size     Free     Dyn  Gpt
@@ -108,9 +187,10 @@ example you should select (d).
       Disk 2    Online         3726 GB      0 B        *
       Disk 3    Online         1863 GB   101 GB        *
 
-    * Select disk to format as an Xbox One Drive . . .                   *
-    Press 0 to CANCEL or use a Disk Number from the list above (default 0 in 30 seco
-    nds) [0,1,2,3]?3
+    * Select TARGET Xbox One Drive . . .                   *
+    Press 4 to CANCEL or use a Disk Number from the list above (default 4 in 30 seconds) [0,1,2,3,4]?3
+    * Does selected disk contain C: Checking...                          *
+    * Does not contain C: can continue                                   *
 
     GUID                                 Dev Size    Name
     5B114955-4A1C-45C4-86DC-D95070008139
@@ -125,21 +205,22 @@ example you should select (d).
     * Disk 3 will be formatted as an Xbox One . . .                      *
 
     Select partition layout:
-    (a) Autosize Non-Standard
-    (b) 500GB Standard
-    (c) 1TB Standard
-    (d) 2TB Standard
+    (a) 500GB Standard
+    (b) 1TB Standard
+    (c) 2TB Standard
+    (d) CANCEL
 
-    ?d
+    ?c
 
     * Removing existing partitions with gdisk64 . . .                    *
     * Creating new partitions with gdisk64 . . .                         *
-
+    * Updating GUID values with gdisk64 . . .                            *
 
     Giving USB/SATA devices time to settle, please wait . . .
 
-    Microsoft DiskPart version 10.0.14393.0
-    Copyright (C) 1999-2013 Microsoft Corporation.
+    Microsoft DiskPart version 10.0.16299.15
+
+    Copyright (C) Microsoft Corporation.
     On computer: XFIX-1
 
       Volume ###  Ltr  Label        Fs     Type        Size     Status     Info
@@ -156,12 +237,13 @@ example you should select (d).
       Volume 9     F   System Upda  NTFS   Partition     12 GB  Healthy
       Volume 10    G   System Upda  NTFS   Partition   7168 MB  Healthy
 
-    * Formatting new partitions with C:\Windows\system32\format . . .    *
-    * Formatting and assigning drive letters with C:\Windows\system32\diskpart . . .
+    * Formatting new partitions with C:\WINDOWS\system32\format . . .    *
+    * Formatting with C:\WINDOWS\system32\diskpart . . .                 *
+    * Assigning drive letters with C:\WINDOWS\system32\diskpart . . .    *
 
+    Microsoft DiskPart version 10.0.16299.15
 
-    Microsoft DiskPart version 10.0.14393.0
-    Copyright (C) 1999-2013 Microsoft Corporation.
+    Copyright (C) Microsoft Corporation.
     On computer: XFIX-1
 
       Volume ###  Ltr  Label        Fs     Type        Size     Status     Info
@@ -223,9 +305,23 @@ example you should select (d).
     24B2197C-9D01-45F9-A8E1-DBBCFA161EB2 Y:  7168 MB 'System Update 2'
 
  7. To view the log file paste this:
+    Command Prompt:
     notepad %TEMP%\create_xbox_drive.log
+    notepad %TEMP%\RoboCopy-Temp_Content.log
+    notepad %TEMP%\RoboCopy-User_Content.log
+    notepad %TEMP%\RoboCopy-System_Support.log
+    notepad %TEMP%\RoboCopy-System_Update.log
+    notepad %TEMP%\RoboCopy-System_Update_2.log
+    Windows PowerShell:
+    notepad $Env:TEMP\create_xbox_drive.log
+    notepad $Env:TEMP\RoboCopy-Temp_Content.log
+    notepad $Env:TEMP\RoboCopy-User_Content.log
+    notepad $Env:TEMP\RoboCopy-System_Support.log
+    notepad $Env:TEMP\RoboCopy-System_Update.log
+    notepad $Env:TEMP\RoboCopy-System_Update_2.log
 
- 8. Download the latest OSU1.zip or OSU2.zip which contains the files:
+ 8. OPTIONAL (skip if OSU1 doesn't match the last successful update):
+    Download the latest OSU1.zip which contains the files:
 
     $SystemUpdate/host.xvd
     $SystemUpdate/SettingsTemplate.xvd

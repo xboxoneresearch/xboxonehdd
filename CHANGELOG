@@ -5,6 +5,18 @@ Windows: create_xbox_drive.bat
 2016/10/18 - List Partition Sizes (4.0) - XFiX
 2017/05/12 - Added Englishize Cmd v1.7a Support (5.0) - XFiX
 2017/05/24 - Official 1TB and 2TB GUID Support (5.0) - XFiX
+2017/12/11 - Added "Run as administrator" check (6.0) - XFiX
+2017/12/11 - Non-Standard larger than 2TB Support (6.0) - XFiX
+2017/12/11 - Robocopy Standard to Non-Standard (6.0) - XFiX
+2018/01/03 - Added \Windows\System32\en-US check (6.0) - XFiX
+2018/01/31 - Allow selection of disk 0 (6.1) - XFiX
+2018/01/31 - Only Backup "System Update" (6.1) - XFiX
+2018/02/01 - Added :ChkForC to avoid destroying C: (6.1) - JCRocky5, XFiX
+2018/03/12 - Better check for drive letter availability (7.0) - XFiX
+2018/03/12 - Copy data to a local drive when only one SATA adapter is available (7.0) - XFiX
+2018/04/26 - Find and log the current system language code (7.0) - XFiX
+2018/04/26 - Warn drive size limitations and limit to 2TB "User Content" (7.0) - XFiX
+2018/05/29 - Logging and path improvements (7.0) - XFiX
 
 Linux: create_xbox_drive.sh
 2014/07/09 - Initial Release - Ludvik Jerabek
@@ -13,3 +25,8 @@ Linux: create_xbox_drive.sh
 2016/05/17 - Fixed disk size calculation physical vs logical blocks (3.0) - Ludvik Jerabek
 2017/05/24 - Original 1TB and 2TB GUID Support with --disktype [0|1|2] (5.0) - XFiX
 2017/05/31 - Improved list_part_info.sh to help find the proper disk (5.0) - XFiX
+2018/01/10 - Non-Standard larger than 2TB Support (6.0) - XFiX
+2018/01/10 - Added Source drive for data copy --source option (6.0) - XFiX
+2018/01/10 - Copy source data to target drive with --stage 2 (6.0) - XFiX
+2018/04/26 - Warn drive size limitations and limit to 2TB "User Content" (7.0) - XFiX
+2018/06/19 - Preserve ACLs with rsync -A (7.0) - XFiX
