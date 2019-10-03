@@ -1,6 +1,8 @@
 @echo off
 
-:: detech win ver
+::  2018/09/19 - Improved Windows 10 Support - XFiX
+
+:: detect win ver
 for /f "usebackq tokens=3 skip=2" %%i in (`reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v CurrentVersion`) do (
   @if %%i LSS 6.0 (
       echo.
@@ -86,6 +88,8 @@ echo.
 ::echo Press any key to begin . . .
 ::pause >nul
 
+for /f "tokens=3" %%A in ('reg query "HKCU\Control Panel\Desktop" /v PreferredUILanguages ^| findstr /b /r /c:" *PreferredUILanguages"') do (set LANGUI=%%A)
+for /f "tokens=3" %%A in ('reg query "HKLM\SOFTWARE\Microsoft\LanguageOverlay\OverlayPackages\%LANGUI%" /v Latest ^| findstr /b /r /c:" *Latest"') do (set LANGPATH=%%A)
 
 :: the below only runs if current system is x64
 :: it covers mui files under %windir%\SysWoW64 used by 32bit cmd.exe (%windir%\SysWoW64\cmd.exe)

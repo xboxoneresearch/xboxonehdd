@@ -1,11 +1,12 @@
-Last Updated: 2018/05/10
+Last Updated: 2018/11/16
 Author: XFiX
+https://gbatemp.net/threads/xbox-one-internal-hard-drive-upgrade-or-repair-build-any-size-drive-that-works-on-any-console.496212/
 https://www.youtube.com/playlist?list=PLURaLwRqr6g14Pl8qLO0E4ELBBCHfFh1V
 
 Creates a properly partitioned Xbox One hard drive. You'll want to source the
 entire original drive files or use the latest OSU1 files.
 
-Features:
+FEATURES:
 1. Wipe drive of all partitions and GUID values
 2. Create a Standard Xbox One 500GB, 1TB, or 2TB internal hard drive
 3. Upgrade a Standard Xbox One drive to non-standard sizes including
@@ -25,6 +26,36 @@ You'll need some sort of USB to SATA device or have the ability to connect a
 SATA drive directly to your PC. I recommend the USB3S2SAT3CB USB 3.0 to SATA
 adapter cable.
 
+
+NOTES AND WARNINGS:
+NOTE 1: Xbox One internal drives have a 2TB limit that you cannot get around.
+        This is a bug or feature by Microsoft's design.
+        This is the video I made trying to fill a 5TB internal drive.
+        https://www.youtube.com/watch?v=tcoa8Xx_6oU
+        Version 7.0 and above max the "User Content" partition out at 1947GB.
+        Theoretically you can created a larger partition than this but you
+        cannot use the additional space.
+
+WARNING 1: E100 is bad. It is possible to do an offline update to resolve it
+           but this mostly isn't the case. E100 is the only know error that
+           actually refers to the Blu-ray drive. Under certain circumstances
+           during an Xbox One update the Blu-ray drive firmware can become
+           permanently corrupted. Any sort of Blu-ray drive failure involving
+           the daughterboard will brick your system since only the original
+           factory matching Xbox One motherboard and Blu-ray daughterboard can
+           be used together.
+           YOU CANNOT REPLACE A BLU-RAY DAUGHTERBOARD FROM ANOTHER SYSTEM!
+
+
+REPAIR AND UPGRADE PATHS:
+Xbox One Internal Hard Drive Direct Copy Upgrade
+https://www.youtube.com/watch?v=iZiUyx7oH_E
+
+Xbox One Internal Hard Drive Repair or Replace
+https://www.youtube.com/watch?v=CTLOhi3tbEs
+
+
+EXAMPLE SCRIPT USAGE AND OUTPUT:
  1. Unzip xboxonehdd-master-7.zip to the root of the "UBUNTU FAT32" flash drive which will create an xboxonehdd-master directory
  2. Boot the "UBUNTU FAT32" flash drive and choose "Try Ubuntu"
  3. Right click the desktop and select "Open Terminal"

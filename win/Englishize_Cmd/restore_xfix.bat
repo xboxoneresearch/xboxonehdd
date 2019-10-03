@@ -1,6 +1,8 @@
 @echo off
 
-:: detech win ver
+::  2018/09/19 - Improved Windows 10 Support - XFiX
+
+:: detect win ver
 for /f "usebackq tokens=3 skip=2" %%i in (`reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v CurrentVersion`) do (
   @if %%i LSS 6.0 (
       echo.
@@ -86,7 +88,7 @@ for /f "usebackq" %%i in ("_files_to_process.txt") do (
 	if exist "%systemroot%\System32\%%m\%%i.mui.disabled" (
 		ren "%systemroot%\System32\%%m\%%i.mui.disabled" "%%i.mui"
 		if exist "%systemroot%\SysWoW64\%%m\%%i.mui.disabled" @ren "%systemroot%\SysWoW64\%%m\%%i.mui.disabled" "%%i.mui"
-		icacls "%systemroot%\System32\%%m\%%i.mui" /setowner "NT Service\TrustedInstaller" /C 
+		icacls "%systemroot%\System32\%%m\%%i.mui" /setowner "NT Service\TrustedInstaller" /C
 		REM the below output is probably an error, hence muted to avoid confusion as redirection probably handled it
 		if exist "%systemroot%\SysWoW64\%%m\%%i.mui" @icacls "%systemroot%\SysWoW64\%%m\%%i.mui" /setowner "NT Service\TrustedInstaller" /C >nul 2>&1
 		icacls "%systemroot%\System32\%%m\%%i.mui" /grant:r "%adminGroupName%":^(RX^) /inheritance:d
@@ -95,7 +97,7 @@ for /f "usebackq" %%i in ("_files_to_process.txt") do (
 	if exist "%systemroot%\SysWoW64\%%m\%%i.mui.disabled" (
 		ren "%systemroot%\SysWoW64\%%m\%%i.mui.disabled" "%%i.mui"
 		if exist "%systemroot%\System32\%%m\%%i.mui.disabled" @ren "%systemroot%\System32\%%m\%%i.mui.disabled" "%%i.mui"
-		icacls "%systemroot%\SysWoW64\%%m\%%i.mui" /setowner "NT Service\TrustedInstaller" /C 
+		icacls "%systemroot%\SysWoW64\%%m\%%i.mui" /setowner "NT Service\TrustedInstaller" /C
 		if exist "%systemroot%\System32\%%m\%%i.mui" @icacls "%systemroot%\System32\%%m\%%i.mui" /setowner "NT Service\TrustedInstaller" /C >nul 2>&1
 		icacls "%systemroot%\SysWoW64\%%m\%%i.mui" /grant:r "%adminGroupName%":^(RX^) /inheritance:d
 		if exist "%systemroot%\System32\%%m\%%i.mui" @icacls "%systemroot%\System32\%%m\%%i.mui" /grant:r "%adminGroupName%":^(RX^) /inheritance:d >nul 2>&1

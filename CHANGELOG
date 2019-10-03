@@ -17,6 +17,9 @@ Windows: create_xbox_drive.bat
 2018/04/26 - Find and log the current system language code (7.0) - XFiX
 2018/04/26 - Warn drive size limitations and limit to 2TB "User Content" (7.0) - XFiX
 2018/05/29 - Logging and path improvements (7.0) - XFiX
+2018/06/19 - Preserve ACLs with robocopy /COPYALL (7.0 Removed 8.0) - XFiX
+2018/11/13 - Removed Englishize Cmd v1.7a Usage (8.0) - XFiX
+2018/11/13 - Support systems with 10 or more attached drives (8.0) - XFiX
 
 Linux: create_xbox_drive.sh
 2014/07/09 - Initial Release - Ludvik Jerabek

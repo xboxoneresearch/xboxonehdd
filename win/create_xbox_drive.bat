@@ -1,8 +1,8 @@
 @Echo Off
 SETLOCAL EnableDelayedExpansion
 ::  Author:  XFiX
-::  Date:    2018/05/10
-::  Version: 7.0
+::  Date:    2018/11/13
+::  Version: 8.0
 ::
 ::  Summary:
 ::  Create a true Xbox One 500GB, 1TB, or 2TB filesystem
@@ -16,9 +16,9 @@ SETLOCAL EnableDelayedExpansion
 ::  Change History:
 ::  2016/06/30 - Initial Release (2.0) - XFiX
 ::  2016/07/20 - Added Partition Size Selection (3.0) - XFiX
-::  2016/08/10 - Use devcon to reset USB drives (4.0 Redacted 5.0) - XFiX
+::  2016/08/10 - Use devcon to reset USB drives (4.0 Removed 5.0) - XFiX
 ::  2016/10/18 - List Partition Sizes (4.0) - XFiX
-::  2017/05/12 - Added Englishize Cmd v1.7a Support (5.0) - XFiX
+::  2017/05/12 - Added Englishize Cmd v1.7a Support (5.0 Removed 8.0) - XFiX
 ::  2017/05/24 - Official 1TB and 2TB GUID Support (5.0) - XFiX
 ::  2017/12/11 - Added "Run as administrator" check (6.0) - XFiX
 ::  2017/12/11 - Non-Standard larger than 2TB Support (6.0) - XFiX
@@ -32,7 +32,9 @@ SETLOCAL EnableDelayedExpansion
 ::  2018/04/26 - Find and log the current system language code (7.0) - XFiX
 ::  2018/04/26 - Warn drive size limitations and limit to 2TB "User Content" (7.0) - XFiX
 ::  2018/05/29 - Logging and path improvements (7.0) - XFiX
-::  2018/06/19 - Preserve ACLs with robocopy /COPYALL (7.0) - XFiX
+::  2018/06/19 - Preserve ACLs with robocopy /COPYALL (7.0 Removed 8.0) - XFiX
+::  2018/11/13 - Removed Englishize Cmd v1.7a Usage (8.0) - XFiX
+::  2018/11/13 - Support systems with 10 or more attached drives (8.0) - XFiX
 ::
 ::  Credit History:
 ::  2013/11 - Juvenal of Team Xecuter created the first working Python script
@@ -78,7 +80,7 @@ set XBO_CALC=calc
 set XBO_ATTRIB=%SystemRoot%\system32\attrib
 set XBO_CHKDSK=%SystemRoot%\system32\chkdsk
 set XBO_DISKPART=%SystemRoot%\system32\diskpart
-set XBO_EN_US=%SystemRoot%\system32\en-US
+set XBO_EN_US=%SystemRoot%\system32\en-US\diskpart.exe.mui
 set XBO_FORMAT=%SystemRoot%\system32\format
 set XBO_LABEL=%SystemRoot%\system32\label
 set XBO_MOUNTVOL=%SystemRoot%\system32\mountvol
@@ -87,7 +89,7 @@ set XBO_WMIC=%SystemRoot%\system32\wbem\wmic
 
 set XBO_CANCEL=0
 set XBO_LOG=%TEMP%\create_xbox_drive.log
-set XBO_VER=2018.05.10.7.0
+set XBO_VER=2018.11.13.8.0
 title Create Xbox One Drive %XBO_VER%
 
 echo Ver: %XBO_VER% > %XBO_LOG% 2>&1
@@ -96,6 +98,10 @@ time /T >> %XBO_LOG% 2>&1
 
 for /f "tokens=3" %%A in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Nls\Language" /v InstallLanguage ^| findstr /b /r /c:" *InstallLanguage"') do (set LANGID=%%A)
 echo Language ID: %LANGID% >> %XBO_LOG% 2>&1
+for /f "tokens=3" %%A in ('reg query "HKCU\Control Panel\Desktop" /v PreferredUILanguages ^| findstr /b /r /c:" *PreferredUILanguages"') do (set LANGUI=%%A)
+echo Language UI: %LANGUI% >> %XBO_LOG% 2>&1
+for /f "tokens=3" %%A in ('reg query "HKLM\SOFTWARE\Microsoft\LanguageOverlay\OverlayPackages\%LANGUI%" /v Latest ^| findstr /b /r /c:" *Latest"') do (set LANGPATH=%%A)
+echo Language Path: %LANGPATH% >> %XBO_LOG% 2>&1
 echo. >> %XBO_LOG% 2>&1
 echo Current Directory Start: >> %XBO_LOG% 2>&1
 cd >> %XBO_LOG% 2>&1
@@ -111,24 +117,27 @@ echo *                                                                    *
 echo * Created      2016.06.30.2.0                                        *
 echo * Last Updated %XBO_VER%                                        *
 echo * Language ID  %LANGID%                                                  *
+echo * Language UI  %LANGUI%                                                 *
 echo **********************************************************************
 echo.
 CALL :ChkPerms
 if %XBO_PERMS% EQU 0 goto endall
-CALL :ChkEng
-if %XBO_PERMS% EQU 0 goto endall
+::CALL :ChkEng
+::if %XBO_PERMS% EQU 0 goto endall
 CALL :ChkForLetters
 
-echo * This script will temporarily change the command line interface to  *
-echo * English and change it back when complete.                          *
+::echo * This script will temporarily change the command line interface to  *
+::echo * English and change it back when complete.                          *
 echo.
 
 pause
 
+cd /D %~dp0
+:: 2018/11/13 - Removed Englishize requirement
 :: Attempt to force English so that diskpart.exe output can be parsed correctly
-cd /D %~dp0\Englishize_Cmd
-call englishize_xfix.bat
-cd ..
+::cd /D %~dp0\Englishize_Cmd
+::call englishize_xfix.bat
+::cd ..
 echo Current Directory Adjusted: >> %XBO_LOG% 2>&1
 cd >> %XBO_LOG% 2>&1
 
@@ -1182,7 +1191,9 @@ GOTO:EOF
 
 :: Run robocopy with common switches
 :RoboCopyRun <sourceVarName> <targetVarName> <lognameVarValue>
-set XBO_RUN=%XBO_ROBOCOPY% "!%1!" "!%2!" /ZB /COPYALL /MIR /XJ /R:3 /W:3 /TS /FP /ETA /LOG:"%TEMP%/RoboCopy-%3.log" /TEE
+:: 2018/06/19 - Preserve ACLs with robocopy /COPYALL - not really necessary and creates issues when removing files from Windows
+::set XBO_RUN=%XBO_ROBOCOPY% "!%1!" "!%2!" /ZB /COPYALL /MIR /XJ /R:3 /W:3 /TS /FP /ETA /LOG:"%TEMP%/RoboCopy-%3.log" /TEE
+set XBO_RUN=%XBO_ROBOCOPY% "!%1!" "!%2!" /ZB /MIR /XJ /R:3 /W:3 /TS /FP /ETA /LOG:"%TEMP%/RoboCopy-%3.log" /TEE
 echo.
 echo * Running: %XBO_RUN%
 echo * Running: %XBO_RUN% >> !XBO_LOG! 2>&1
@@ -1210,16 +1221,20 @@ GOTO:EOF
 :: Check if "English (United States)" is installed
 :ChkEng <>
 echo * English language availability required. Checking...                *
+echo. >> %XBO_LOG% 2>&1
 
 IF EXIST %XBO_EN_US% (
+    echo English language availability confirmed >> %XBO_LOG% 2>&1
     echo * English language availability confirmed                            *
     set XBO_PERMS=1
 ) ELSE (
+    echo English language missing >> %XBO_LOG% 2>&1
     echo * English language missing. Please add English ^(United States^) using:*
     echo * Control Panel\All Control Panel Items\Language\Add languages       *
     set XBO_PERMS=0
 )
 echo.
+echo. >> %XBO_LOG% 2>&1
 GOTO:EOF
 
 
@@ -1308,11 +1323,13 @@ echo.
 %XBO_DISKPART% /s %XBO_DP_SCRIPT% >> %XBO_LOG% 2>&1
 echo. >> %XBO_LOG% 2>&1
 
-:: Ignore the header (Disk ###) and Disk 0 lines
+:: Ignore the header (Disk ###) and --- lines
 ::%XBO_DISKPART% /s %XBO_DP_SCRIPT% | findstr /b /r /c:" *Disk [^#]" | find /c "Disk"
 :: CHANGEME: The word "Disk" in English may be a different for your language
 :: For example: Portuguese and Spanish users must change " *Disk [^#]" ^| find /c "Disk"') with " *Disco [^#]" ^| find /c "Disco"')
-for /f "tokens=*" %%A in ('%XBO_DISKPART% /s %XBO_DP_SCRIPT% ^| findstr /b /r /c:" *Disk [^#]" ^| find /c "Disk"') do (set XBO_DRIVE_COUNT=%%A)
+:: Instead of manually setting the proper word for disk depending on the language just isolate a word followed by a number
+:: findstr doesn't support Unicode so we need to match the ? replacement as well
+for /f "tokens=*" %%A in ('%XBO_DISKPART% /s %XBO_DP_SCRIPT% ^| findstr /b /r /c:" *[a-z?]* *[0-9]" ^| find /c " "') do (set XBO_DRIVE_COUNT=%%A)
 set XBO_CNT=0
 set XBO_CHOICE=0
 ::echo * Testing: Valid drive count: '%XBO_DRIVE_COUNT%'                                    *
@@ -1330,8 +1347,18 @@ goto lchoice
 :rchoice
 ::echo * Testing: Choice list: %XBO_CHOICE% *
 echo * Select %1 Xbox One Drive . . .                                 *
-choice.exe /C %XBO_CHOICE%%XBO_CNT% /D %XBO_CNT% /T %XBO_TIMEOUT% /M "Press %XBO_CNT% to CANCEL or use a Disk Number from the list above (default %XBO_CNT% in %XBO_TIMEOUT% seconds)"
-set /a XBO_FORMAT_DRIVE=%ERRORLEVEL%-1
+:: 2018/11/13 - Support systems with 10 or more attached drives
+::choice.exe /C %XBO_CHOICE%%XBO_CNT% /D %XBO_CNT% /T %XBO_TIMEOUT% /M "Press %XBO_CNT% to CANCEL or use a Disk Number from the list above (default %XBO_CNT% in %XBO_TIMEOUT% seconds)"
+::set /a XBO_FORMAT_DRIVE=%ERRORLEVEL%-1
+echo Enter %XBO_CNT% to CANCEL or use a Disk Number from the list above
+set /p XBO_FORMAT_DRIVE=?
+echo.
+if not '%XBO_FORMAT_DRIVE%'=='' set choice=%choice:~0,1%
+:: First check if the answer is numeric
+SET "CHKNUM="&for /f "delims=0123456789" %%i in ("%XBO_FORMAT_DRIVE%") do set CHKNUM=%%i
+if defined CHKNUM goto rchoice
+:: Second make sure the answer isn't bigger than cancel
+if %XBO_FORMAT_DRIVE% GTR %XBO_CNT% goto rchoice
 GOTO:EOF
 
 
@@ -1358,7 +1385,7 @@ GOTO:EOF
 echo select disk %XBO_FORMAT_DRIVE% > %XBO_DP_SCRIPT%
 echo detail disk >> %XBO_DP_SCRIPT%
 :: Get Disk GUID
-for /f "tokens=2* delims={}" %%A in ('%XBO_DISKPART% /s %XBO_DP_SCRIPT% ^| findstr /b /r /c:"Disk ID"') do (
+for /f "tokens=2* delims={}" %%A in ('%XBO_DISKPART% /s %XBO_DP_SCRIPT% ^| findstr /r /c:"{[a-z0-9-]*}"') do (
     set XBO_DISK_GUID=%%A
 )
 
@@ -1372,7 +1399,7 @@ echo %XBO_DISK_GUID%             %DISK_NAME% >> %XBO_LOG% 2>&1
 
 set /a XBO_PART_CNT=0
 :: Get Volume GUID(s)- 1st get drive letters
-for /f "tokens=3,4,5,8,9" %%A in ('%XBO_DISKPART% /s %XBO_DP_SCRIPT% ^| findstr /b /r /c:" *Volume [^#]"') do (
+for /f "tokens=3,4,5,8,9" %%A in ('%XBO_DISKPART% /s %XBO_DP_SCRIPT% ^| findstr /b /r /c:" *Volume [0-9]"') do (
     set /a XBO_PART_CNT+=1
     set XBO_PART!XBO_PART_CNT!_LETTER=%%A:
     set XBO_PART!XBO_PART_CNT!_SIZE=%%D %%E
@@ -1386,11 +1413,10 @@ for /f "tokens=3,4,5,8,9" %%A in ('%XBO_DISKPART% /s %XBO_DP_SCRIPT% ^| findstr 
         CALL :UpCase XBO_PART!XBO_PART_CNT!_GUID
     )
     :: 3rd get volume labels
-    for /f "tokens=6,7*" %%V in ('vol %%A: ^| findstr /b /r /c:" *Volume in drive"') do (
+    for /f "tokens=2,3*" %%V in ('wmic logicaldisk get Caption^,VolumeName ^| findstr /b /r /c:"%%A"') do (
         CALL :Trim XBO_ENDLABEL1 %%W
-        set XBO_ENDLABEL2=
-        if not '%%X'=='' (
-            CALL :Trim XBO_ENDLABEL2 %%X
+        CALL :Trim XBO_ENDLABEL2 %%X
+        if not "!XBO_ENDLABEL2!"=="" (
             set XBO_ENDLABEL2= !XBO_ENDLABEL2!
         )
         set XBO_PART!XBO_PART_CNT!_NAME=%%V !XBO_ENDLABEL1!!XBO_ENDLABEL2!
@@ -1497,16 +1523,17 @@ time /T >> %XBO_LOG% 2>&1
 echo.
 echo * Script execution complete.                                         *
 echo.
-echo * This script will now change the command line interface back to the *
-echo * default language.                                                  *
-echo.
+::echo * This script will now change the command line interface back to the *
+::echo * default language.                                                  *
+::echo.
 pause
 
 
+:: 2018/11/13 - Removed Englishize requirement
 :: Attempt to restore everything back to original language
-cd /D %~dp0\Englishize_Cmd
-call restore_xfix.bat
-cd ..
+::cd /D %~dp0\Englishize_Cmd
+::call restore_xfix.bat
+::cd ..
 
 :endall
 ENDLOCAL

@@ -380,7 +380,8 @@ function copy_xbox_part() {
     # Copy
     echo
     echo "Copying '${LABEL}' from ${PARTSRC} to ${PARTDEV} please be patient . . ."
-    rsync -rlAtgoDzv --size-only "${MOUNT_ROOT}/${LABEL}1/" "${MOUNT_ROOT}/${LABEL}/"
+    #rsync -rlAtgoDzv --size-only "${MOUNT_ROOT}/${LABEL}1/" "${MOUNT_ROOT}/${LABEL}/"
+    rsync -rltgoDzv --size-only "${MOUNT_ROOT}/${LABEL}1/" "${MOUNT_ROOT}/${LABEL}/"
 
     # Cleanup
     umount ${PARTDEV}

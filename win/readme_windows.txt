@@ -1,11 +1,12 @@
-Last Updated: 2018/05/10
+Last Updated: 2018/11/16
 Author: XFiX
+https://gbatemp.net/threads/xbox-one-internal-hard-drive-upgrade-or-repair-build-any-size-drive-that-works-on-any-console.496212/
 https://www.youtube.com/playlist?list=PLURaLwRqr6g14Pl8qLO0E4ELBBCHfFh1V
 
 Creates a properly partitioned Xbox One hard drive. You'll want to source the
 entire original drive files or use the latest OSU1 files.
 
-Features:
+FEATURES:
 1. Create a Standard Xbox One 500GB, 1TB, or 2TB internal hard drive
 2. Upgrade a Standard Xbox One drive to non-standard sizes including
    as small as 138GB, as large as 1947GB, and other non-standard sizes
@@ -22,21 +23,41 @@ You'll need some sort of USB to SATA device or have the ability to connect a
 SATA drive directly to your PC. I recommend the USB3S2SAT3CB USB 3.0 to SATA
 adapter cable.
 
-NOTE 1: You need to run this script from an Administrator Command Prompt
+
+NOTES AND WARNINGS:
+NOTE 1: Xbox One internal drives have a 2TB limit that you cannot get around.
+        This is a bug or feature by Microsoft's design.
+        This is the video I made trying to fill a 5TB internal drive.
+        https://www.youtube.com/watch?v=tcoa8Xx_6oU
+        Version 7.0 and above max the "User Content" partition out at 1947GB.
+        Theoretically you can created a larger partition than this but you
+        cannot use the additional space.
+
+NOTE 2: You need to run this script from an Administrator Command Prompt
         using the "Run as administrator" feature.
 
-NOTE 2: For this script to work on non-English Windows systems
+NOTE 3: For this script to work on non-English Windows systems
         C:\Windows\System32\en-US needs to be present.
         Control Panel\All Control Panel Items\Language\Add languages
         English (United States)
 
-NOTE 3: Click "Cancel" or "X" on any "You need to format the disk in drive ?:
+NOTE 4: Click "Cancel" or "X" on any "You need to format the disk in drive ?:
         before you can use it." messages.
 
-NOTE 4: diskmgmt.msc is your friend. Keep it open while running this script
+NOTE 5: diskmgmt.msc is your friend. Keep it open while running this script
         to check progress and verify proper partitioning and formatting.
 
-WARNING 1: Only have one Xbox One or future Xbox One drive connected when
+WARNING 1: E100 is bad. It is possible to do an offline update to resolve it
+           but this mostly isn't the case. E100 is the only know error that
+           actually refers to the Blu-ray drive. Under certain circumstances
+           during an Xbox One update the Blu-ray drive firmware can become
+           permanently corrupted. Any sort of Blu-ray drive failure involving
+           the daughterboard will brick your system since only the original
+           factory matching Xbox One motherboard and Blu-ray daughterboard can
+           be used together.
+           YOU CANNOT REPLACE A BLU-RAY DAUGHTERBOARD FROM ANOTHER SYSTEM!
+
+WARNING 2: Only have one Xbox One or future Xbox One drive connected when
            running this script to ensure the right drive gets formatted and
            avoid Offline signature collisions!
 
@@ -48,7 +69,7 @@ WARNING 1: Only have one Xbox One or future Xbox One drive connected when
            the SOURCE disconnected:
            (g) Wipe drive of all partitions and GUID values
 
-WARNING 2: Always use "Safely Remove Hardware and Eject Media" and "Eject" the
+WARNING 3: Always use "Safely Remove Hardware and Eject Media" and "Eject" the
            newly created drive.
            If you receive the message: "Windows can't stop your
            'Generic volume' device because a program is still using it."
@@ -56,7 +77,7 @@ WARNING 2: Always use "Safely Remove Hardware and Eject Media" and "Eject" the
            diskmgmt.msc right click the disk, select "Offline", then "Online"
            and then "Safely Remove Hardware and Eject Media" and "Eject".
 
-Primary script functions explained:
+SCRIPT FUNCTIONS EXPLAINED:
 (a) Replace/Upgrade w/o a working original drive   (Standard Only)    - used to fix systems when the original drive has failed
 (b) Replace/Upgrade keeping original drive data    (Standard and Non) - used to swap to a smaller or larger standard or non-standard drive
 (c) Fix GUID values w/o formatting the drive       (Standard and Non) - should be used after step (b) and after disconnecting the SOURCE drive
@@ -66,7 +87,7 @@ Primary script functions explained:
 (g) Wipe drive of all partitions and GUID values   (Standard and Non) - used to blank a drive before rerunning step (b)
 (h) CANCEL                                                            - skip making any drive modifications
 
-Partition layout explained:
+PARTITION LAYOUT:
 There are 5 partitions on an Xbox One drive. The 2nd partition 'User Content'
 is what this selection refers to. The other 4 partitions are always the same
 size regardless of the drive size.
@@ -87,6 +108,29 @@ should select (d). For 3TB, 4TB, or 5TB drives you should select (f).
 (f) Autosize Non-Standard w/ 2TB Disk GUID   (1947GB MAX) - create an autosized 'User Content' resetting to 2TB
 
 
+REPAIR AND UPGRADE PATHS:
+Xbox One Internal Hard Drive Backup and Restore Upgrade
+https://www.youtube.com/watch?v=Yq9CQdyOzac
+Menu roadmap:
+(d) Backup "System Update" to current directory    (Standard and Non)
+(a) Replace/Upgrade w/o a working original drive   (Standard Only)
+(e) Restore "System Update" from current directory (Standard and Non)
+
+
+Xbox One Internal Hard Drive Direct Copy Upgrade
+https://www.youtube.com/watch?v=xBvGFUaOGB4
+Menu roadmap:
+(b) Replace/Upgrade keeping original drive data    (Standard and Non)
+(c) Fix GUID values w/o formatting the drive       (Standard and Non)
+
+
+Xbox One Internal Hard Drive Repair or Replace Using
+https://www.youtube.com/watch?v=4xYQQicXdU0
+Menu roadmap:
+(a) Replace/Upgrade w/o a working original drive   (Standard Only)
+
+
+EXAMPLE SCRIPT USAGE AND OUTPUT:
  1. Unzip xboxonehdd-master-7.zip to the Desktop which will create an xboxonehdd-master directory
  2. Open an Administrator Command Prompt:
     Windows 7: Click "Start Menu -> All Programs -> Accessories" right click "Command Prompt" select "Run as administrator"
