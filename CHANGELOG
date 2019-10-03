@@ -1,0 +1,9 @@
+Windows: create_xbox_drive.bat
+2016/06/30 - Initial Release (2.0) - XFiX
+2016/07/20 - Added Partition Size Selection (3.0) - XFiX
+
+Linux: create_xbox_drive.sh
+2014/07/09 - Initial Release - Ludvik Jerabek
+2016/01/07 - Removed MBR Patching and added --stage 0 (1.0) - XFiX
+2016/05/13 - Added Original Xbox User Content size --mirror option (3.0) - Ludvik Jerabek
+2016/05/17 - Fixed disk size calculation physical vs logical blocks (3.0) - Ludvik Jerabek
