@@ -1,4 +1,5 @@
-Last Updated: 2018/11/16
+Last Updated: 2026/10/21
+Script version: 9.0
 Author: XFiX
 https://gbatemp.net/threads/xbox-one-internal-hard-drive-upgrade-or-repair-build-any-size-drive-that-works-on-any-console.496212/
 https://www.youtube.com/playlist?list=PLURaLwRqr6g14Pl8qLO0E4ELBBCHfFh1V
@@ -17,7 +18,12 @@ FEATURES:
 7. Wipe drive of all partitions and GUID values
 
 This script is a direct replacement to create_xbox_drive.sh for Linux and
-tested on Windows 7 and 10.
+tested on Windows 7, 10, and 11.
+
+Version 9.0 does not use wmic.exe, which Windows 11 does not include.
+Drive letters and volume labels come from Windows PowerShell. The script
+removes the letters Windows assigned, then assigns U: through Y: or
+H: through L:, and checks that the assignment succeeded.
 
 You'll need some sort of USB to SATA device or have the ability to connect a
 SATA drive directly to your PC. I recommend the USB3S2SAT3CB USB 3.0 to SATA
