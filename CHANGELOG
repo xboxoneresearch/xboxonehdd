@@ -1,4 +1,8 @@
 Windows: create_xbox_drive.bat
+2026/10/21 - Replace WMIC with PowerShell CIM queries for Windows 11 (9.0)
+2026/10/21 - Recognize Xbox volumes on whatever letters Windows assigns (9.0)
+2026/10/21 - Retry drive-letter assignment and verify the result (9.0)
+2026/10/21 - Free every Xbox letter before assigning H-L or U-Y (9.0)
 2016/06/30 - Initial Release (2.0) - XFiX
 2016/07/20 - Added Partition Size Selection (3.0) - XFiX
 2016/08/10 - Use devcon to reset USB drives (4.0 Redacted 5.0) - XFiX

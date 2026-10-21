@@ -1,8 +1,8 @@
 @Echo Off
 SETLOCAL EnableDelayedExpansion
 ::  Author:  XFiX
-::  Date:    2018/11/13
-::  Version: 8.0
+::  Date:    2026/10/21
+::  Version: 9.0
 ::
 ::  Summary:
 ::  Create a true Xbox One 500GB, 1TB, or 2TB filesystem
@@ -35,6 +35,10 @@ SETLOCAL EnableDelayedExpansion
 ::  2018/06/19 - Preserve ACLs with robocopy /COPYALL (7.0 Removed 8.0) - XFiX
 ::  2018/11/13 - Removed Englishize Cmd v1.7a Usage (8.0) - XFiX
 ::  2018/11/13 - Support systems with 10 or more attached drives (8.0) - XFiX
+::  2026/10/21 - Replace WMIC with PowerShell CIM queries for Windows 11 (9.0)
+::  2026/10/21 - Recognize Xbox volumes on whatever letters Windows assigns (9.0)
+::  2026/10/21 - Retry drive-letter assignment and verify the result (9.0)
+::  2026/10/21 - Free every Xbox letter before assigning H-L or U-Y (9.0)
 ::
 ::  Credit History:
 ::  2013/11 - Juvenal of Team Xecuter created the first working Python script
@@ -70,6 +74,13 @@ set SYSTEM_SUPPORT_LETTER=W:
 set SYSTEM_UPDATE_LETTER=X:
 set SYSTEM_UPDATE2_LETTER=Y:
 
+:: Common Xbox One Partition Labels
+set TEMP_CONTENT_LABEL=Temp Content
+set USER_CONTENT_LABEL=User Content
+set SYSTEM_SUPPORT_LABEL=System Support
+set SYSTEM_UPDATE_LABEL=System Update
+set SYSTEM_UPDATE2_LABEL=System Update 2
+
 :: Specify locations of the tools below
 :: Avoid: Invalid number. Numbers are limited to 32-bits of precision.
 :: A super-duper simple command line calculator that is fast and easy to use:
@@ -85,11 +96,13 @@ set XBO_FORMAT=%SystemRoot%\system32\format
 set XBO_LABEL=%SystemRoot%\system32\label
 set XBO_MOUNTVOL=%SystemRoot%\system32\mountvol
 set XBO_ROBOCOPY=%SystemRoot%\system32\robocopy
-set XBO_WMIC=%SystemRoot%\system32\wbem\wmic
+:: wmic.exe was removed from Windows 11. Logical disk queries go through PowerShell CIM.
+set XBO_PS=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe
+set XBO_LD_FILE=%TEMP%\xbo_logicaldisk.txt
 
 set XBO_CANCEL=0
 set XBO_LOG=%TEMP%\create_xbox_drive.log
-set XBO_VER=2018.11.13.8.0
+set XBO_VER=2026.10.21.9.0
 title Create Xbox One Drive %XBO_VER%
 
 echo Ver: %XBO_VER% > %XBO_LOG% 2>&1
@@ -159,6 +172,8 @@ if "%WINBIT%" == "x86" (
 set XBO_DP_SCRIPT=%TEMP%\dps.txt
 set XBO_GD_SCRIPT=%TEMP%\gds.txt
 set XBO_TIMEOUT=30
+:: Seconds to wait after removing a drive letter before assigning the new one
+set XBO_LETTER_WAIT=5
 set XBO_LABEL_PREFIX=
 
 :: Fake (DUPlicatE) GUIDs used to avoid drive conflicts on Windows (Offline signature collisions)
@@ -180,15 +195,9 @@ set SYSTEM_SUPPORT_GUID=C90D7A47-CCB9-4CBA-8C66-0459F6B85724
 set SYSTEM_UPDATE_GUID=9A056AD7-32ED-4141-AEB1-AFB9BD5565DC
 set SYSTEM_UPDATE2_GUID=24B2197C-9D01-45F9-A8E1-DBBCFA161EB2
 
-:: Common Xbox One Partition Labels
-set TEMP_CONTENT_LABEL=Temp Content
-set USER_CONTENT_LABEL=User Content
-set SYSTEM_SUPPORT_LABEL=System Support
-set SYSTEM_UPDATE_LABEL=System Update
-set SYSTEM_UPDATE2_LABEL=System Update 2
-
 :: Common partition sizes used by Xbox One
-:: wmic partition get name,bootable,size,type
+:: Originally measured with: wmic partition get name,bootable,size,type
+:: These are fixed constants. wmic.exe is not required at runtime.
 :: Xbox temp partition size (41G)
 set XBOX_TEMP_SIZE_IN_BYTES=44023414784
 :: Xbox support partition size (40G)
@@ -901,77 +910,202 @@ GOTO:EOF
 :: Formatting the same drive twice can produce this error
 :: Virtual Disk Service error:
 :: The specified drive letter is not free to be assigned.
-
-IF '!%6!' == 'D' (
-    set XBO_FINDSTR_TEMP=DTemp.Conte
-    set XBO_FINDSTR_USER=DUser.Conte
-    set XBO_FINDSTR_SUPPORT=DSystem.Sup
-    set XBO_FINDSTR_UPDATE=DSystem.Upd.*12
-    set XBO_FINDSTR_UPDATE2=DSystem.Upd.*7168
-) else (
-    set XBO_FINDSTR_TEMP=Temp.Conten
-    set XBO_FINDSTR_USER=User.Conten
-    set XBO_FINDSTR_SUPPORT=System.Supp
-    set XBO_FINDSTR_UPDATE=System.Upda.*12
-    set XBO_FINDSTR_UPDATE2=System.Upda.*7168
-)
+:: Volumes are matched by label, so Windows 11 letters such as E: F: G: still work.
+:: diskpart size text is not used. "System Update 2" no longer depends on "7168 MB".
 
 :: "Partition Order Safe"
 echo * Assigning drive letters with %XBO_DISKPART% . . .    *
-
-:: Rescan for newly added devices
-echo rescan > %XBO_DP_SCRIPT%
-:: Retrieve all volume numbers for assigning drive letters
-echo list volume >> %XBO_DP_SCRIPT%
-for /f "tokens=2" %%A in ('%XBO_DISKPART% /s %XBO_DP_SCRIPT% ^| findstr /b /r /c:".*!XBO_FINDSTR_TEMP!"') do (
-    set XBO_VOL_TEMP=%%A
+CALL :RefreshLogicalDisks
+if /I "!%6!"=="D" (
+    set "XBO_LBL_TEMP=D!TEMP_CONTENT_LABEL!"
+    set "XBO_LBL_USER=D!USER_CONTENT_LABEL!"
+    set "XBO_LBL_SUPPORT=D!SYSTEM_SUPPORT_LABEL!"
+    set "XBO_LBL_UPDATE=D!SYSTEM_UPDATE_LABEL!"
+    set "XBO_LBL_UPDATE2=D!SYSTEM_UPDATE2_LABEL!"
+) else (
+    set "XBO_LBL_TEMP=!TEMP_CONTENT_LABEL!"
+    set "XBO_LBL_USER=!USER_CONTENT_LABEL!"
+    set "XBO_LBL_SUPPORT=!SYSTEM_SUPPORT_LABEL!"
+    set "XBO_LBL_UPDATE=!SYSTEM_UPDATE_LABEL!"
+    set "XBO_LBL_UPDATE2=!SYSTEM_UPDATE2_LABEL!"
 )
+CALL :FindVolLetter "!XBO_LBL_TEMP!"
+set "XBO_LET_TEMP=!XBO_FOUND_LETTER!"
+CALL :FindVolLetter "!XBO_LBL_USER!"
+set "XBO_LET_USER=!XBO_FOUND_LETTER!"
+CALL :FindVolLetter "!XBO_LBL_SUPPORT!"
+set "XBO_LET_SUPPORT=!XBO_FOUND_LETTER!"
+CALL :FindVolLetter "!XBO_LBL_UPDATE!"
+set "XBO_LET_UPDATE=!XBO_FOUND_LETTER!"
+CALL :FindVolLetter "!XBO_LBL_UPDATE2!"
+set "XBO_LET_UPDATE2=!XBO_FOUND_LETTER!"
 
-echo list volume > %XBO_DP_SCRIPT%
-for /f "tokens=2" %%A in ('%XBO_DISKPART% /s %XBO_DP_SCRIPT% ^| findstr /b /r /c:".*!XBO_FINDSTR_USER!"') do (
-    set XBO_VOL_USER=%%A
+set "XBO_VN_TEMP="
+set "XBO_VN_USER="
+set "XBO_VN_SUPPORT="
+set "XBO_VN_UPDATE="
+set "XBO_VN_UPDATE2="
+set XBO_ASSIGN_FAIL=0
+echo rescan > "%XBO_DP_SCRIPT%"
+"%XBO_DISKPART%" /s "%XBO_DP_SCRIPT%" >> "%XBO_LOG%" 2>&1
+CALL :CaptureVol XBO_LET_TEMP %1 XBO_LBL_TEMP TEMP
+CALL :CaptureVol XBO_LET_USER %2 XBO_LBL_USER USER
+CALL :CaptureVol XBO_LET_SUPPORT %3 XBO_LBL_SUPPORT SUPPORT
+CALL :CaptureVol XBO_LET_UPDATE %4 XBO_LBL_UPDATE UPDATE
+CALL :CaptureVol XBO_LET_UPDATE2 %5 XBO_LBL_UPDATE2 UPDATE2
+:: H: and I: are often still held by System Update and System Update 2 on this
+:: same disk. Remove every letter first, then assign H-L or U-Y.
+echo * Removing current letters before assigning the new ones.
+set "XBO_REMOVE_ANY="
+CALL :QueueRemove TEMP
+CALL :QueueRemove USER
+CALL :QueueRemove SUPPORT
+CALL :QueueRemove UPDATE
+CALL :QueueRemove UPDATE2
+if defined XBO_REMOVE_ANY (
+    CALL :RunDiskpart
+    CALL :WaitSecs %XBO_LETTER_WAIT%
 )
-
-echo list volume > %XBO_DP_SCRIPT%
-for /f "tokens=2" %%A in ('%XBO_DISKPART% /s %XBO_DP_SCRIPT% ^| findstr /b /r /c:".*!XBO_FINDSTR_SUPPORT!"') do (
-    set XBO_VOL_SUPPORT=%%A
+CALL :GiveLetter TEMP XBO_LBL_TEMP
+CALL :GiveLetter USER XBO_LBL_USER
+CALL :GiveLetter SUPPORT XBO_LBL_SUPPORT
+CALL :GiveLetter UPDATE XBO_LBL_UPDATE
+CALL :GiveLetter UPDATE2 XBO_LBL_UPDATE2
+echo.
+echo * Verified drive letters:
+CALL :RefreshLogicalDisks
+CALL :ShowAssigned XBO_LBL_TEMP %1
+CALL :ShowAssigned XBO_LBL_USER %2
+CALL :ShowAssigned XBO_LBL_SUPPORT %3
+CALL :ShowAssigned XBO_LBL_UPDATE %4
+CALL :ShowAssigned XBO_LBL_UPDATE2 %5
+if !XBO_ASSIGN_FAIL! EQU 1 (
+    echo * One or more drive letters were NOT assigned. See %XBO_LOG%
+) else (
+    echo * All requested drive letters are present.
 )
+echo.
+GOTO:EOF
 
-echo list volume > %XBO_DP_SCRIPT%
-for /f "tokens=2" %%A in ('%XBO_DISKPART% /s %XBO_DP_SCRIPT% ^| findstr /b /r /c:".*!XBO_FINDSTR_UPDATE!"') do (
-    set XBO_VOL_UPDATE=%%A
+
+:: Remember the diskpart volume number while its current letter still exists.
+:CaptureVol <currentLetterVar> <newLetterVar> <labelVar> <slot>
+set "XBO_CAP_SLOT=%~4"
+if not defined %1 goto CaptureMissing
+set "XBO_CUR=!%1!"
+set "XBO_CUR=!XBO_CUR:~0,1!"
+set "XBO_NEW=!%2!"
+set "XBO_NEW=!XBO_NEW:~0,1!"
+CALL :VolNumForLetter
+if not defined XBO_VOL_NUM goto CaptureNoNum
+set "XBO_VN_%XBO_CAP_SLOT%=!XBO_VOL_NUM!"
+set "XBO_CUR_%XBO_CAP_SLOT%=!XBO_CUR!"
+set "XBO_NW_%XBO_CAP_SLOT%=!XBO_NEW!"
+echo * '!%3!' volume !XBO_VOL_NUM! !%1! -^> !%2!
+GOTO:EOF
+:CaptureMissing
+echo * '!%3!' is not mounted. Cannot assign !%2!
+echo * '!%3!' is not mounted. Cannot assign !%2! >> "%XBO_LOG%" 2>&1
+set XBO_ASSIGN_FAIL=1
+GOTO:EOF
+:CaptureNoNum
+echo * FAILED '!%3!' on !%1! was not found in diskpart list volume.
+echo * FAILED '!%3!' on !%1! was not found in diskpart list volume. >> "%XBO_LOG%" 2>&1
+set XBO_ASSIGN_FAIL=1
+GOTO:EOF
+
+
+:QueueRemove <slot>
+set "XBO_VN_NOW=!XBO_VN_%~1!"
+if not defined XBO_VN_NOW GOTO:EOF
+if not defined XBO_REMOVE_ANY (
+    echo select volume !XBO_VN_NOW! > "%XBO_DP_SCRIPT%"
+    set "XBO_REMOVE_ANY=1"
+) else (
+    echo select volume !XBO_VN_NOW! >> "%XBO_DP_SCRIPT%"
 )
+echo remove all >> "%XBO_DP_SCRIPT%"
+echo * remove !XBO_CUR_%~1!: from volume !XBO_VN_NOW!
+GOTO:EOF
 
-echo list volume > %XBO_DP_SCRIPT%
-for /f "tokens=2" %%A in ('%XBO_DISKPART% /s %XBO_DP_SCRIPT% ^| findstr /b /r /c:".*!XBO_FINDSTR_UPDATE2!"') do (
-    set XBO_VOL_UPDATE2=%%A
+
+:: Assign the script letter after every conflicting letter has been removed.
+:GiveLetter <slot> <labelVar>
+set "XBO_VOL_NUM=!XBO_VN_%~1!"
+set "XBO_NEW=!XBO_NW_%~1!"
+set "XBO_WANT_LABEL=!%~2!"
+set "XBO_TARGET_LETTER=!XBO_NEW!:"
+if not defined XBO_VOL_NUM GOTO:EOF
+set XBO_TRY=0
+:AssignTry
+set /a XBO_TRY+=1
+echo select volume !XBO_VOL_NUM! > "%XBO_DP_SCRIPT%"
+echo online volume noerr >> "%XBO_DP_SCRIPT%"
+echo assign letter=!XBO_NEW! >> "%XBO_DP_SCRIPT%"
+CALL :RunDiskpart
+CALL :WaitSecs 2
+CALL :RefreshLogicalDisks
+CALL :FindVolLetter "!XBO_WANT_LABEL!"
+if /I "!XBO_FOUND_LETTER!"=="!XBO_TARGET_LETTER!" goto AssignOk
+if !XBO_TRY! GEQ 3 goto AssignFail
+echo * '!XBO_WANT_LABEL!' is not on !XBO_TARGET_LETTER! yet. Retry !XBO_TRY! of 3.
+CALL :WaitSecs %XBO_LETTER_WAIT%
+goto AssignTry
+:AssignOk
+echo * OK !XBO_TARGET_LETTER! '!XBO_WANT_LABEL!'
+echo * OK !XBO_TARGET_LETTER! '!XBO_WANT_LABEL!' >> "%XBO_LOG%" 2>&1
+GOTO:EOF
+:AssignFail
+echo * FAILED '!XBO_WANT_LABEL!' is not on !XBO_TARGET_LETTER! after 3 attempts.
+set "XBO_HELD="
+for /f "usebackq tokens=1,2* delims=|" %%A in ("%XBO_LD_FILE%") do (
+    if /I "%%A"=="!XBO_TARGET_LETTER!" set "XBO_HELD=%%C"
 )
+if defined XBO_HELD echo * !XBO_TARGET_LETTER! is already used by '!XBO_HELD!'.
+echo * diskpart said:
+type "%TEMP%\xbo_dp_out.txt"
+echo * FAILED '!XBO_WANT_LABEL!' is not on !XBO_TARGET_LETTER! after 3 attempts. >> "%XBO_LOG%" 2>&1
+set XBO_ASSIGN_FAIL=1
+GOTO:EOF
 
-:: Remove all letters to prevent new partitions from holding ones we need
-echo select volume !XBO_VOL_TEMP! > !XBO_DP_SCRIPT!
-echo remove all NOERR >> !XBO_DP_SCRIPT!
-echo select volume !XBO_VOL_USER! >> !XBO_DP_SCRIPT!
-echo remove all NOERR >> !XBO_DP_SCRIPT!
-echo select volume !XBO_VOL_SUPPORT! >> !XBO_DP_SCRIPT!
-echo remove all NOERR >> !XBO_DP_SCRIPT!
-echo select volume !XBO_VOL_UPDATE! >> !XBO_DP_SCRIPT!
-echo remove all NOERR >> !XBO_DP_SCRIPT!
-echo select volume !XBO_VOL_UPDATE2! >> !XBO_DP_SCRIPT!
-echo remove all NOERR >> !XBO_DP_SCRIPT!
 
-:: Add all drive letters
-echo select volume !XBO_VOL_TEMP! >> !XBO_DP_SCRIPT!
-echo assign letter=!%1! NOERR >> !XBO_DP_SCRIPT!
-echo select volume !XBO_VOL_USER! >> !XBO_DP_SCRIPT!
-echo assign letter=!%2! NOERR >> !XBO_DP_SCRIPT!
-echo select volume !XBO_VOL_SUPPORT! >> !XBO_DP_SCRIPT!
-echo assign letter=!%3! NOERR >> !XBO_DP_SCRIPT!
-echo select volume !XBO_VOL_UPDATE! >> !XBO_DP_SCRIPT!
-echo assign letter=!%4! NOERR >> !XBO_DP_SCRIPT!
-echo select volume !XBO_VOL_UPDATE2! >> !XBO_DP_SCRIPT!
-echo assign letter=!%5! NOERR >> !XBO_DP_SCRIPT!
+:: Volume ### whose Ltr column is XBO_CUR. Number stays valid after the letter is removed.
+:VolNumForLetter
+set "XBO_VOL_NUM="
+echo list volume > "%XBO_DP_SCRIPT%"
+for /f "tokens=2,3" %%A in ('%XBO_DISKPART% /s %XBO_DP_SCRIPT%') do (
+    if /I "%%B"=="!XBO_CUR!" call :VolNumTake %%A
+)
+if defined XBO_VOL_NUM echo * diskpart volume !XBO_VOL_NUM! has !XBO_CUR!: >> "%XBO_LOG%" 2>&1
+GOTO:EOF
 
-!XBO_DISKPART! /s !XBO_DP_SCRIPT! >> !XBO_LOG! 2>&1
+
+:VolNumTake <number>
+set "XBO_NON="
+for /f "delims=0123456789" %%N in ("%~1") do set "XBO_NON=%%N"
+if not defined XBO_NON set "XBO_VOL_NUM=%~1"
+GOTO:EOF
+
+
+:RunDiskpart
+"%XBO_DISKPART%" /s "%XBO_DP_SCRIPT%" > "%TEMP%\xbo_dp_out.txt" 2>&1
+type "%TEMP%\xbo_dp_out.txt" >> "%XBO_LOG%" 2>&1
+GOTO:EOF
+
+
+:: %1 = label variable name, %2 = expected letter variable name
+:ShowAssigned <labelVarName> <letterVarName>
+CALL :FindVolLetter "!%1!"
+if /I "!XBO_FOUND_LETTER!"=="!%2!" (
+    echo * OK !%2! '!%1!'
+) else (
+    if defined XBO_FOUND_LETTER (
+        echo * FAILED '!%1!' is on !XBO_FOUND_LETTER! expected !%2!
+    ) else (
+        echo * FAILED '!%1!' has no drive letter. Expected !%2!
+    )
+    set XBO_ASSIGN_FAIL=1
+)
 GOTO:EOF
 
 
@@ -1262,8 +1396,35 @@ GOTO:EOF
 
 :: Check if a list of drive letters are in use
 :ChkForLetters <>
-::wmic logicaldisk get Caption,Description,VolumeName
+echo * Logical drives mounted by Windows:                                *
+CALL :RefreshLogicalDisks
+set XBO_LD_ANY=0
+for /f "usebackq tokens=1,2* delims=|" %%A in ("%XBO_LD_FILE%") do (
+    echo ^* %%A - %%B %%C
+    set XBO_LD_ANY=1
+)
+if !XBO_LD_ANY! EQU 0 echo ^* None
+echo.
+echo * Xbox One partitions recognized by volume label:                   *
+CALL :ReportXboxVol TEMP_CONTENT_LABEL
+CALL :ReportXboxVol USER_CONTENT_LABEL
+CALL :ReportXboxVol SYSTEM_SUPPORT_LABEL
+CALL :ReportXboxVol SYSTEM_UPDATE_LABEL
+CALL :ReportXboxVol SYSTEM_UPDATE2_LABEL
+CALL :FindVolLetter "D!TEMP_CONTENT_LABEL!"
+if defined XBO_FOUND_LETTER echo ^* !XBO_FOUND_LETTER! 'D!TEMP_CONTENT_LABEL!'
+CALL :FindVolLetter "D!USER_CONTENT_LABEL!"
+if defined XBO_FOUND_LETTER echo ^* !XBO_FOUND_LETTER! 'D!USER_CONTENT_LABEL!'
+CALL :FindVolLetter "D!SYSTEM_SUPPORT_LABEL!"
+if defined XBO_FOUND_LETTER echo ^* !XBO_FOUND_LETTER! 'D!SYSTEM_SUPPORT_LABEL!'
+CALL :FindVolLetter "D!SYSTEM_UPDATE_LABEL!"
+if defined XBO_FOUND_LETTER echo ^* !XBO_FOUND_LETTER! 'D!SYSTEM_UPDATE_LABEL!'
+CALL :FindVolLetter "D!SYSTEM_UPDATE2_LABEL!"
+if defined XBO_FOUND_LETTER echo ^* !XBO_FOUND_LETTER! 'D!SYSTEM_UPDATE2_LABEL!'
+echo.
 echo * Are required drive letters available? Checking...                  *
+echo * These are the letters this script assigns. Windows may be using    *
+echo * other letters, listed above, until that assignment runs.           *
 CALL :ChkLetter TEMP_CONTENT_LDUPE
 CALL :ChkLetter USER_CONTENT_LDUPE
 CALL :ChkLetter SYSTEM_SUPPORT_LDUPE
@@ -1287,16 +1448,58 @@ GOTO:EOF
 :: See if the given drive letter is in use
 :ChkLetter <drvletterVarName>
 set XBO_AVAIL=1
-for /f "tokens=1*" %%A in ('wmic logicaldisk get Caption^,Description^,VolumeName ^| findstr /b /r /c:"!%1!"') do (
-    set MESG=%%A - %%B
-    IF '%%A'=='!%1!' (
-        echo ^* Found !MESG!
+for /f "usebackq tokens=1,2* delims=|" %%A in ("%XBO_LD_FILE%") do (
+    if /I "%%A"=="!%1!" (
+        echo ^* Found %%A - %%B %%C
         set XBO_AVAIL=0
     )
 )
 if !XBO_AVAIL! EQU 1 (
     echo ^* !%1! is free
 )
+GOTO:EOF
+
+
+:: Print the drive letter currently mounted for one Xbox volume label.
+:ReportXboxVol <labelVarName>
+CALL :FindVolLetter "!%1!"
+if defined XBO_FOUND_LETTER (
+    echo ^* !XBO_FOUND_LETTER! '!%1!'
+) else (
+    echo ^* '!%1!' is not mounted
+)
+GOTO:EOF
+
+
+:: Set XBO_FOUND_LETTER to the DeviceID whose volume label equals the argument.
+:FindVolLetter <label>
+set "XBO_FOUND_LETTER="
+set "XBO_FIND_LABEL=%~1"
+for /f "usebackq tokens=1,2* delims=|" %%A in ("%XBO_LD_FILE%") do (
+    if /I "%%C"=="!XBO_FIND_LABEL!" set "XBO_FOUND_LETTER=%%A"
+)
+GOTO:EOF
+
+
+:: Snapshot of Win32_LogicalDisk. Replaces wmic.exe, which Windows 11 no longer includes.
+:: Writes DeviceID|Description|VolumeName lines to %XBO_LD_FILE% using the console code page.
+:RefreshLogicalDisks <>
+if exist "%XBO_LD_FILE%" del /q "%XBO_LD_FILE%" >nul 2>&1
+if not exist "%XBO_PS%" (
+    echo * WARNING: Windows PowerShell was not found. Drive letter checks may be wrong. *
+    echo PowerShell missing: "%XBO_PS%" >> %XBO_LOG% 2>&1
+    type nul > "%XBO_LD_FILE%"
+    GOTO:EOF
+)
+"%XBO_PS%" -NoProfile -NonInteractive -Command "$ProgressPreference='SilentlyContinue'; $rows=@(Get-CimInstance -ClassName Win32_LogicalDisk | ForEach-Object { $desc=[string]$_.Description; $label=[string]$_.VolumeName; $desc=$desc.Replace([char]13,' ').Replace([char]10,' ').Replace('|',' ').Trim(); $label=$label.Replace([char]13,' ').Replace([char]10,' ').Replace('|',' ').Trim(); $_.DeviceID+'|'+$desc+'|'+$label }); $cp=[Console]::OutputEncoding.CodePage; if ($cp -eq 65001) { $enc=New-Object System.Text.UTF8Encoding $false } else { $enc=[System.Text.Encoding]::GetEncoding($cp) }; [System.IO.File]::WriteAllLines($env:XBO_LD_FILE, [string[]]$rows, $enc)"
+if not exist "%XBO_LD_FILE%" (
+    echo * WARNING: Could not list logical disks. Drive letter checks may be wrong. *
+    echo Logical disk query failed >> %XBO_LOG% 2>&1
+    type nul > "%XBO_LD_FILE%"
+)
+echo Logical disks: >> %XBO_LOG% 2>&1
+type "%XBO_LD_FILE%" >> %XBO_LOG% 2>&1
+echo. >> %XBO_LOG% 2>&1
 GOTO:EOF
 
 
@@ -1398,6 +1601,7 @@ echo GUID                                 Dev Size    Name >> %XBO_LOG% 2>&1
 echo %XBO_DISK_GUID%             %DISK_NAME% >> %XBO_LOG% 2>&1
 
 set /a XBO_PART_CNT=0
+CALL :RefreshLogicalDisks
 :: Get Volume GUID(s)- 1st get drive letters
 for /f "tokens=3,4,5,8,9" %%A in ('%XBO_DISKPART% /s %XBO_DP_SCRIPT% ^| findstr /b /r /c:" *Volume [0-9]"') do (
     set /a XBO_PART_CNT+=1
@@ -1413,13 +1617,9 @@ for /f "tokens=3,4,5,8,9" %%A in ('%XBO_DISKPART% /s %XBO_DP_SCRIPT% ^| findstr 
         CALL :UpCase XBO_PART!XBO_PART_CNT!_GUID
     )
     :: 3rd get volume labels
-    for /f "tokens=2,3*" %%V in ('wmic logicaldisk get Caption^,VolumeName ^| findstr /b /r /c:"%%A"') do (
-        CALL :Trim XBO_ENDLABEL1 %%W
-        CALL :Trim XBO_ENDLABEL2 %%X
-        if not "!XBO_ENDLABEL2!"=="" (
-            set XBO_ENDLABEL2= !XBO_ENDLABEL2!
-        )
-        set XBO_PART!XBO_PART_CNT!_NAME=%%V !XBO_ENDLABEL1!!XBO_ENDLABEL2!
+    set "XBO_PART!XBO_PART_CNT!_NAME="
+    for /f "usebackq tokens=1,2* delims=|" %%V in ("%XBO_LD_FILE%") do (
+        if /I "%%V"=="%%A:" set "XBO_PART!XBO_PART_CNT!_NAME=%%X"
     )
     CALL :PrtPart XBO_PART!XBO_PART_CNT!_GUID XBO_PART!XBO_PART_CNT!_LETTER XBO_PART!XBO_PART_CNT!_SIZEP XBO_PART!XBO_PART_CNT!_NAME
 )
@@ -1484,6 +1684,11 @@ GOTO:EOF
     set "%~1=%spc%"
     GOTO:EOF
 )
+
+
+:WaitSecs <seconds>
+start /wait choice.exe /N /C C /T %~1 /D C /M "Waiting %~1 seconds for the drive letter to settle . . ."
+GOTO:EOF
 
 
 :: Pause the script to allow things to complete
